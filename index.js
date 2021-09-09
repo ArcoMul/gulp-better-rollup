@@ -62,10 +62,16 @@ class GulpRollup extends Transform {
 			// rename file if input is given
 			file.path = path.join(file.cwd, inputOptions.input)
 
+		// Allow defining a custom cache name so that the same file can be cached
+        // for different build setups. Rollup doesn't know this property though, so
+        // remove it from the inputOptions
+		var cacheName = inputOptions.cacheName;
+        delete inputOptions.cacheName;
+
 		// caching is enabled by default because of the nature of gulp and the watching/recompilatin
 		// but can be disabled by setting 'cache' to false
 		if (inputOptions.cache !== false)
-			inputOptions.cache = rollupCache[inputOptions.input] || null
+			inputOptions.cache = rollupCache[(cacheName || '') + inputOptions.input] || null
 
 		// enable sourcemap is gulp-sourcemaps plugin is enabled
 		var createSourceMap = file.sourceMap !== undefined
@@ -162,7 +168,7 @@ class GulpRollup extends Transform {
 			.then(bundle => {
 				// cache rollup object if caching is enabled
 				if (inputOptions.cache !== false)
-					rollupCache[inputOptions.input] = bundle
+					rollupCache[(cacheName || '') + inputOptions.input] = bundle
 				// generate ouput according to (each of) given outputOptions
 				return Promise.all(bundleList.map((outputOptions, i) => createBundle(bundle, outputOptions, i)))
 			})
@@ -170,7 +176,7 @@ class GulpRollup extends Transform {
 			.then(() => cb(null, file))
 			.catch(err => {
 				if (inputOptions.cache !== false)
-					rollupCache[inputOptions.input] = null
+					rollupCache[(cacheName || '') + inputOptions.input] = null
 				process.nextTick(() => {
 					this.emit('error', new PluginError(PLUGIN_NAME, err))
 					cb(null, file)
